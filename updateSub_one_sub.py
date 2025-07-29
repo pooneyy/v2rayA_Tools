@@ -1,4 +1,5 @@
 import json
+import re
 import requests
 import subprocess
 import time
@@ -22,22 +23,18 @@ def get_container_ip(container_name):
     try:
         # 获取容器的详细信息
         result = subprocess.run(
-            ["docker", "inspect", container_name],
+            ["docker", "inspect", r"-f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", container_name],
             capture_output=True,
             text=True,
             check=True
         )
-
-        # 解析 JSON 输出
-        inspect_output = json.loads(result.stdout)
-
-        # 获取容器的 IP 地址
-        ip_address = inspect_output[0]['NetworkSettings']['Networks'].get('1panel-network',{}).get('IPAddress',None)
-
-        return ip_address
+        ip_address = result.stdout.strip()
+        ip_match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', ip_address)
+        if ip_match:return ip_match.group(1)
+        else:return 'localhost'
     except subprocess.CalledProcessError as e:
         logging.info(f"Error inspecting container: {e}")
-        return None
+        return 'localhost'
 
 def login():
     global TOKEN
@@ -70,18 +67,16 @@ def main():
     # 获取服务状态
     status = get_status()
     sub_info = status["data"]["touch"]["subscriptions"]
-    applied_sub_id = CONFIG['apply_subscription_id']
+    applied_sub_ids = CONFIG['apply_subscription_id']
     sub_start_time = int(time.time())
     if status["data"]["running"]:
         logging.info(f"停用代理: {disable_Proxy()}")
-        updateSub(applied_sub_id)
+        for sub_id in applied_sub_ids:updateSub(sub_id)
         logging.info(f"启用代理: {enable_Proxy()}")
-    else:updateSub(applied_sub_id)
+    else:
+        for sub_id in applied_sub_ids:updateSub(sub_id)
     sub_end_time = int(time.time())
-    for sub in sub_info:
-        if sub["id"] == applied_sub_id:
-            logging.info(f'''更新订阅 {sub.get("remarks", f"ID: {sub['id']}")} 耗时 {sub_end_time - sub_start_time} 秒''')
-            break
+    logging.info(f'''更新订阅 {', '.join(sub.get("remarks", f"ID: {sub['id']}") for sub in sub_info if sub["id"] in applied_sub_ids)} 耗时 {sub_end_time - sub_start_time} 秒''')
 
 if __name__ == "__main__":
     main()

@@ -4,10 +4,11 @@
     "forced_reset_proxy": true,
     "username": "v2rayA_webui_username",
     "password": "v2rayA_webui_passwore",
-    "apply_subscription_id": 1,
+    "apply_subscription_ids": [1],
     "number_of_node_group_members": 110,
     "random_selected_node": true,
     "node_name_blacklist":[],
     "node_protocol_blacklist":[],
+    "node_delay_limit": 1000,
     "v2raya_config": "/home/v2raya/config.json"
 }

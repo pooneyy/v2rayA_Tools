@@ -1,8 +1,8 @@
 import json
+import re
 import requests
 import subprocess
 
-'''节点延迟测试时，节点数量过多时就需要分组请求，每一组的节点数量上限'''
 CONFIG = {}
 HOST = ""
 TOKEN = ""
@@ -17,22 +17,18 @@ def get_container_ip(container_name):
     try:
         # 获取容器的详细信息
         result = subprocess.run(
-            ["docker", "inspect", container_name],
+            ["docker", "inspect", r"-f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", container_name],
             capture_output=True,
             text=True,
             check=True
         )
-
-        # 解析 JSON 输出
-        inspect_output = json.loads(result.stdout)
-
-        # 获取容器的 IP 地址
-        ip_address = inspect_output[0]['NetworkSettings']['Networks'].get('1panel-network',{}).get('IPAddress',None)
-
-        return ip_address
+        ip_address = result.stdout.strip()
+        ip_match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', ip_address)
+        if ip_match:return ip_match.group(1)
+        else:return 'localhost'
     except subprocess.CalledProcessError as e:
-        print(f"Error inspecting container: {e}")
-        return None
+        print.info(f"Error inspecting container: {e}")
+        return 'localhost'
 
 
 def login():
